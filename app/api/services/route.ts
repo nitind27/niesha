@@ -1,0 +1,349 @@
+import { NextRequest, NextResponse } from "next/server"
+import { authenticateRequest } from "@/lib/api-utils"
+
+// GET /api/services - Get all available services
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await authenticateRequest(request)
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error.message }, { status: auth.error.status })
+    }
+
+    const { payload } = auth
+
+    // All available services/modules in the system
+    const services = [
+      {
+        id: "student",
+        name: "Student Management",
+        description: "Complete student lifecycle management from admission to graduation",
+        icon: "GraduationCap",
+        category: "Core",
+        features: [
+          "Student registration and admission",
+          "Student profiles and records",
+          "Parent/Guardian management",
+          "Student documents",
+          "Admission number generation",
+          "Bulk student import",
+        ],
+        route: "/dashboard/students",
+        enabled: true,
+      },
+      {
+        id: "staff",
+        name: "Staff Management",
+        description: "Manage teachers, administrators, and all staff members",
+        icon: "Users",
+        category: "Core",
+        features: [
+          "Staff registration and profiles",
+          "Employee ID management",
+          "Designation and department",
+          "Salary management",
+          "Staff attendance",
+          "Qualifications tracking",
+        ],
+        route: "/dashboard/staff",
+        enabled: true,
+      },
+      {
+        id: "class",
+        name: "Class Management",
+        description: "Organize classes, sections, and academic structure",
+        icon: "School",
+        category: "Academic",
+        features: [
+          "Class creation and management",
+          "Section management",
+          "Class capacity",
+          "Class teacher assignment",
+          "Student-class assignment",
+        ],
+        route: "/dashboard/classes",
+        enabled: true,
+      },
+      {
+        id: "subject",
+        name: "Subject Management",
+        description: "Manage subjects, curriculum, and course structure",
+        icon: "BookOpen",
+        category: "Academic",
+        features: [
+          "Subject creation",
+          "Subject codes",
+          "Teacher assignment",
+          "Class-wise subjects",
+          "Credit management",
+        ],
+        route: "/dashboard/subjects",
+        enabled: true,
+      },
+      {
+        id: "attendance",
+        name: "Attendance Tracking",
+        description: "Track student and staff attendance efficiently",
+        icon: "Calendar",
+        category: "Academic",
+        features: [
+          "Daily attendance marking",
+          "Bulk attendance",
+          "Attendance reports",
+          "Absentee tracking",
+          "Staff attendance",
+        ],
+        route: "/dashboard/attendance",
+        enabled: true,
+      },
+      {
+        id: "exam",
+        name: "Exam Management",
+        description: "Create and manage examinations",
+        icon: "FileText",
+        category: "Academic",
+        features: [
+          "Exam creation",
+          "Exam scheduling",
+          "Multiple exam types",
+          "Exam status tracking",
+          "Class-wise exams",
+        ],
+        route: "/dashboard/exams",
+        enabled: true,
+      },
+      {
+        id: "result",
+        name: "Result Management",
+        description: "Record and manage exam results",
+        icon: "FileText",
+        category: "Academic",
+        features: [
+          "Result entry",
+          "Grade calculation",
+          "Result reports",
+          "Student-wise results",
+          "Subject-wise marks",
+        ],
+        route: "/dashboard/results",
+        enabled: true,
+      },
+      {
+        id: "fee",
+        name: "Fee Management",
+        description: "Manage fee structures and collections",
+        icon: "DollarSign",
+        category: "Finance",
+        features: [
+          "Fee structure creation",
+          "Class-wise fees",
+          "Fee categories",
+          "Due date management",
+          "Fee reminders",
+        ],
+        route: "/dashboard/fees",
+        enabled: true,
+      },
+      {
+        id: "payment",
+        name: "Payment Processing",
+        description: "Process and track payments",
+        icon: "DollarSign",
+        category: "Finance",
+        features: [
+          "Payment recording",
+          "Payment methods",
+          "Receipt generation",
+          "Payment history",
+          "Pending payments",
+        ],
+        route: "/dashboard/payments",
+        enabled: true,
+      },
+      {
+        id: "library",
+        name: "Library Management",
+        description: "Manage library books and issues",
+        icon: "Library",
+        category: "Resources",
+        features: [
+          "Book catalog",
+          "Book issue/return",
+          "Fine management",
+          "Book availability",
+          "Library reports",
+        ],
+        route: "/dashboard/library",
+        enabled: true,
+      },
+      {
+        id: "transport",
+        name: "Transport Management",
+        description: "Manage transport routes and vehicles",
+        icon: "Bus",
+        category: "Resources",
+        features: [
+          "Route management",
+          "Vehicle tracking",
+          "Student transport assignment",
+          "Fare management",
+          "Route optimization",
+        ],
+        route: "/dashboard/transport",
+        enabled: true,
+      },
+      {
+        id: "announcements",
+        name: "Announcements",
+        description: "School-wide announcements and notices",
+        icon: "Megaphone",
+        category: "Communication",
+        features: [
+          "Create announcements",
+          "Target audience selection",
+          "Priority levels",
+          "Scheduled announcements",
+          "Announcement history",
+        ],
+        route: "/dashboard/announcements",
+        enabled: true,
+      },
+      {
+        id: "reports",
+        name: "Reports & Analytics",
+        description: "Comprehensive reporting and analytics",
+        icon: "BarChart3",
+        category: "Analytics",
+        features: [
+          "Student reports",
+          "Staff reports",
+          "Financial reports",
+          "Attendance reports",
+          "Custom reports",
+        ],
+        route: "/dashboard/reports",
+        enabled: true,
+      },
+      {
+        id: "settings",
+        name: "Settings",
+        description: "System and organization settings",
+        icon: "Settings",
+        category: "System",
+        features: [
+          "Organization profile (school, company, trust, NGO)",
+          "Theme customization",
+          "Language settings",
+          "User management",
+          "System configuration",
+        ],
+        route: "/dashboard/settings",
+        enabled: true,
+      },
+      {
+        id: "erp",
+        name: "ERP Hub",
+        description: "Cross-module overview for any organization type",
+        icon: "LayoutGrid",
+        category: "ERP",
+        features: [
+          "Module map and shortcuts",
+          "Organization-type aware labels",
+          "Compliance and ops checklist",
+          "Links to CRM, inventory, and projects",
+        ],
+        route: "/dashboard/erp",
+        enabled: true,
+      },
+      {
+        id: "crm",
+        name: "CRM & Contacts",
+        description: "Stakeholders, donors, clients, and guardians",
+        icon: "Contact",
+        category: "ERP",
+        features: [
+          "Contact profiles and tags",
+          "Lead / donor stage tracking",
+          "Notes and follow-up reminders",
+          "Link to billing and documents",
+        ],
+        route: "/dashboard/crm",
+        enabled: true,
+      },
+      {
+        id: "inventory",
+        name: "Inventory & Assets",
+        description: "Stock, equipment, and fixed assets",
+        icon: "Package",
+        category: "ERP",
+        features: [
+          "SKU and quantity tracking",
+          "Location and custodian fields",
+          "Low-stock highlights",
+          "Audit-ready history (local workspace)",
+        ],
+        route: "/dashboard/inventory",
+        enabled: true,
+      },
+      {
+        id: "projects",
+        name: "Projects & Programs",
+        description: "Kanban for initiatives across sectors",
+        icon: "FolderKanban",
+        category: "ERP",
+        features: [
+          "Board: planned / active / done",
+          "Owner and due date",
+          "Works for CSR, trust programs, or IT",
+          "Ties into staff and reports",
+        ],
+        route: "/dashboard/projects",
+        enabled: true,
+      },
+      {
+        id: "documents",
+        name: "Document center",
+        description: "Policies, contracts, and compliance files",
+        icon: "Files",
+        category: "ERP",
+        features: [
+          "Register of critical documents",
+          "Renewal and review dates",
+          "Categories by legal / HR / finance",
+          "Export mindset for audits",
+        ],
+        route: "/dashboard/documents",
+        enabled: true,
+      },
+    ]
+
+    // Filter services based on user role and permissions
+    const filteredServices = services.filter((service) => {
+      // Super admin can see all services
+      if (payload.role === "super_admin") {
+        return true
+      }
+
+      // For other roles, check if service is enabled and accessible
+      return service.enabled
+    })
+
+    // Group services by category
+    const servicesByCategory = filteredServices.reduce((acc, service) => {
+      if (!acc[service.category]) {
+        acc[service.category] = []
+      }
+      acc[service.category].push(service)
+      return acc
+    }, {} as Record<string, typeof services>)
+
+    return NextResponse.json({
+      services: filteredServices,
+      servicesByCategory,
+      total: filteredServices.length,
+    })
+  } catch (error) {
+    console.error("Services GET error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+

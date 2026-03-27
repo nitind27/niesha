@@ -1,0 +1,710 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CORE TABLES ====================
+
+model School {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  /// school | company | trust | ngo | other — drives ERP labels and defaults
+  organizationType  String   @default("school")
+  industry          String?
+  email             String
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  zipCode           String?
+  logo              String?
+  website           String?
+  status            String   @default("active") // active, suspended, inactive
+  subscriptionPlan  String?  // References SubscriptionPlan.slug
+  subscriptionEnds DateTime?
+  maxUsers          Int      @default(50)
+  maxStudents       Int      @default(500)
+  
+  // Theme Settings
+  primaryColor       String   @default("#3b82f6")
+  secondaryColor     String   @default("#8b5cf6")
+  accentColor        String   @default("#10b981")
+  logoUrl            String?
+  faviconUrl         String?
+  
+  // Language Settings
+  defaultLanguage   String   @default("en")
+  supportedLanguages Json?   // Default handled in application code
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  
+  users             User[]
+  students          Student[]
+  staff             Staff[]
+  classes           Class[]
+  subjects          Subject[]
+  exams             Exam[]
+  fees              Fee[]
+  payments          Payment[]
+  attendance        Attendance[]
+  libraryBooks      LibraryBook[]
+  transportRoutes   TransportRoute[]
+  announcements     Announcement[]
+  auditLogs         AuditLog[]
+  
+  @@index([slug])
+  @@index([status])
+  @@map("schools")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String?
+  permissions Json?    // Array of permission strings
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  users       User[]
+  
+  @@map("roles")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  schoolId      String?
+  email         String
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  roleId        String
+  language      String   @default("en")
+  timezone      String   @default("UTC")
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  school        School?  @relation(fields: [schoolId], references: [id])
+  role          Role     @relation(fields: [roleId], references: [id])
+  staff         Staff?
+  student       Student?
+  parent        Parent?
+  auditLogs     AuditLog[]
+  
+  @@unique([schoolId, email])
+  @@index([schoolId])
+  @@index([email])
+  @@index([roleId])
+  @@map("users")
+}
+
+// ==================== STUDENT MODULE ====================
+
+model Student {
+  id              String   @id @default(cuid())
+  schoolId        String
+  userId          String?  @unique
+  admissionNumber String
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          String   // male, female, other
+  bloodGroup      String?
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  zipCode         String?
+  phone           String?
+  email           String?
+  parentPhone     String?
+  parentEmail     String?
+  photo           String?
+  enrollmentDate  DateTime @default(now())
+  status          String   @default("active") // active, graduated, transferred, inactive
+  classId         String?
+  sectionId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  
+  school          School   @relation(fields: [schoolId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id])
+  class           Class?   @relation(fields: [classId], references: [id])
+  section         Section? @relation(fields: [sectionId], references: [id])
+  attendance      Attendance[]
+  examResults     ExamResult[]
+  feePayments     Payment[]
+  parentStudents  ParentStudent[]
+  transport       StudentTransport[]
+  bookIssues      BookIssue[] @relation("StudentBookIssues")
+  
+  @@unique([schoolId, admissionNumber])
+  @@index([schoolId])
+  @@index([classId])
+  @@index([status])
+  @@map("students")
+}
+
+model Parent {
+  id            String   @id @default(cuid())
+  userId        String?  @unique
+  firstName     String
+  lastName      String
+  email         String
+  phone         String
+  occupation    String?
+  address       String?
+  relation      String   // father, mother, guardian
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  user          User?    @relation(fields: [userId], references: [id])
+  students      ParentStudent[]
+  
+  @@index([email])
+  @@index([phone])
+  @@map("parents")
+}
+
+model ParentStudent {
+  id        String   @id @default(cuid())
+  parentId  String
+  studentId String
+  relation  String   @default("parent") // parent, guardian
+  createdAt DateTime @default(now())
+  
+  parent    Parent   @relation(fields: [parentId], references: [id])
+  student   Student  @relation(fields: [studentId], references: [id])
+  
+  @@unique([parentId, studentId])
+  @@index([parentId])
+  @@index([studentId])
+  @@map("parent_students")
+}
+
+// ==================== STAFF & HR MODULE ====================
+
+model Staff {
+  id            String   @id @default(cuid())
+  schoolId      String
+  userId        String?  @unique
+  employeeId    String
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime?
+  gender        String?
+  phone         String
+  email         String
+  address       String?
+  designation   String   // Teacher, Principal, Accountant, HR, Librarian, Transport Manager
+  department    String?
+  joiningDate   DateTime @default(now())
+  salary        Decimal? @db.Decimal(10, 2)
+  status        String   @default("active") // active, on_leave, terminated, inactive
+  photo         String?
+  qualifications Json?
+  experience    Int?     // years
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  school        School   @relation(fields: [schoolId], references: [id])
+  user          User?    @relation(fields: [userId], references: [id])
+  classes       Class[]
+  subjects      Subject[]
+  attendance    StaffAttendance[]
+  bookIssues    BookIssue[] @relation("StaffBookIssues")
+  
+  @@unique([schoolId, employeeId])
+  @@index([schoolId])
+  @@index([designation])
+  @@index([status])
+  @@map("staff")
+}
+
+// ==================== ACADEMIC MODULE ====================
+
+model Class {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String   // Grade 1, Class 1, etc.
+  level       Int?     // 1, 2, 3...
+  capacity    Int      @default(40)
+  classTeacherId String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  classTeacher Staff?  @relation(fields: [classTeacherId], references: [id])
+  students    Student[]
+  sections    Section[]
+  subjects    Subject[]
+  exams       Exam[]
+  
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("classes")
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  classId     String
+  name        String   // A, B, C
+  capacity    Int      @default(40)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  class       Class    @relation(fields: [classId], references: [id])
+  students    Student[]
+  
+  @@unique([classId, name])
+  @@index([classId])
+  @@map("sections")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  schoolId    String
+  classId     String?
+  name        String
+  code        String?
+  description String?
+  teacherId   String?
+  credits     Int?     @default(1)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  class       Class?   @relation(fields: [classId], references: [id])
+  teacher     Staff?   @relation(fields: [teacherId], references: [id])
+  examResults ExamResult[]
+  
+  @@unique([schoolId, code])
+  @@index([schoolId])
+  @@index([classId])
+  @@map("subjects")
+}
+
+// ==================== EXAMINATION MODULE ====================
+
+model Exam {
+  id          String   @id @default(cuid())
+  schoolId    String
+  classId     String
+  name        String
+  type        String   // mid_term, final, quiz, assignment
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("scheduled") // scheduled, ongoing, completed, cancelled
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  class       Class    @relation(fields: [classId], references: [id])
+  results     ExamResult[]
+  
+  @@index([schoolId])
+  @@index([classId])
+  @@index([status])
+  @@map("exams")
+}
+
+model ExamResult {
+  id          String   @id @default(cuid())
+  examId      String
+  studentId   String
+  subjectId   String
+  marksObtained Decimal @db.Decimal(5, 2)
+  maxMarks    Decimal  @db.Decimal(5, 2)
+  grade       String?
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  exam        Exam     @relation(fields: [examId], references: [id])
+  student     Student  @relation(fields: [studentId], references: [id])
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  
+  @@unique([examId, studentId, subjectId])
+  @@index([examId])
+  @@index([studentId])
+  @@map("exam_results")
+}
+
+// ==================== ATTENDANCE MODULE ====================
+
+model Attendance {
+  id          String   @id @default(cuid())
+  schoolId    String
+  studentId   String
+  date        DateTime @db.Date
+  status      String   // present, absent, late, excused
+  remarks     String?
+  markedBy    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  student     Student  @relation(fields: [studentId], references: [id])
+  
+  @@unique([studentId, date])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([date])
+  @@map("attendances")
+}
+
+model StaffAttendance {
+  id          String   @id @default(cuid())
+  staffId     String
+  date        DateTime @db.Date
+  status      String   // present, absent, late, on_leave
+  checkIn     DateTime?
+  checkOut    DateTime?
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  staff       Staff    @relation(fields: [staffId], references: [id])
+  
+  @@unique([staffId, date])
+  @@index([staffId])
+  @@index([date])
+  @@map("staff_attendances")
+}
+
+// ==================== FEES & FINANCE MODULE ====================
+
+model Fee {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  amount      Decimal  @db.Decimal(10, 2)
+  frequency   String   @default("monthly") // monthly, quarterly, yearly, one_time
+  classId     String?
+  isActive    Boolean  @default(true)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  payments    Payment[]
+  
+  @@index([schoolId])
+  @@index([classId])
+  @@map("fees")
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  schoolId    String
+  studentId   String
+  feeId       String
+  amount      Decimal  @db.Decimal(10, 2)
+  paymentDate DateTime @default(now())
+  paymentMethod String // cash, card, bank_transfer, online
+  transactionId String?
+  status      String   @default("pending") // pending, completed, failed, refunded
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  student     Student  @relation(fields: [studentId], references: [id])
+  fee         Fee      @relation(fields: [feeId], references: [id])
+  
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([feeId])
+  @@index([status])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+// ==================== LIBRARY MODULE ====================
+
+model LibraryBook {
+  id          String   @id @default(cuid())
+  schoolId    String
+  isbn        String?
+  title       String
+  author      String
+  publisher   String?
+  category    String?
+  edition     String?
+  totalCopies Int      @default(1)
+  availableCopies Int  @default(1)
+  price       Decimal? @db.Decimal(10, 2)
+  shelfNumber String?
+  status      String   @default("available") // available, issued, lost, damaged
+  coverImage  String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  issues      BookIssue[]
+  
+  @@index([schoolId])
+  @@index([isbn])
+  @@index([status])
+  @@map("library_books")
+}
+
+model BookIssue {
+  id          String   @id @default(cuid())
+  bookId      String
+  studentId   String?
+  staffId     String?
+  issueDate   DateTime @default(now())
+  dueDate     DateTime
+  returnDate  DateTime?
+  status      String   @default("issued") // issued, returned, overdue, lost
+  fineAmount  Decimal? @db.Decimal(10, 2) @default(0)
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  book        LibraryBook @relation(fields: [bookId], references: [id])
+  student     Student?    @relation("StudentBookIssues", fields: [studentId], references: [id])
+  staff       Staff?      @relation("StaffBookIssues", fields: [staffId], references: [id])
+  
+  @@index([bookId])
+  @@index([studentId])
+  @@index([status])
+  @@map("book_issues")
+}
+
+// ==================== TRANSPORT MODULE ====================
+
+model TransportRoute {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  routeNumber String
+  startPoint  String
+  endPoint    String
+  stops       Json?    // Array of stop locations
+  distance    Decimal? @db.Decimal(8, 2) // in km
+  fare        Decimal? @db.Decimal(10, 2)
+  vehicleId   String?
+  driverId    String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  students    StudentTransport[]
+  
+  @@unique([schoolId, routeNumber])
+  @@index([schoolId])
+  @@map("transport_routes")
+}
+
+model StudentTransport {
+  id          String   @id @default(cuid())
+  studentId   String
+  routeId     String
+  pickupPoint String?
+  dropPoint   String?
+  fare        Decimal? @db.Decimal(10, 2)
+  status      String   @default("active")
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  student     Student  @relation(fields: [studentId], references: [id])
+  route       TransportRoute @relation(fields: [routeId], references: [id])
+  
+  @@unique([studentId])
+  @@index([routeId])
+  @@map("student_transports")
+}
+
+// ==================== COMMUNICATION MODULE ====================
+
+model Announcement {
+  id          String   @id @default(cuid())
+  schoolId    String
+  title       String
+  content     String   @db.Text
+  type        String   @default("general") // general, academic, event, emergency
+  targetAudience Json? // Array of role names or "all"
+  priority    String   @default("normal") // low, normal, high, urgent
+  startDate   DateTime?
+  endDate     DateTime?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  createdBy   String?
+  
+  school      School   @relation(fields: [schoolId], references: [id])
+  
+  @@index([schoolId])
+  @@index([isPublished])
+  @@index([type])
+  @@map("announcements")
+}
+
+// ==================== SUBSCRIPTION PLANS ====================
+
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  tagline       String?
+  description   String?  @db.Text
+  monthlyPrice  Decimal  @db.Decimal(10, 2)
+  yearlyPrice   Decimal  @db.Decimal(10, 2)
+  originalMonthlyPrice Decimal? @db.Decimal(10, 2)
+  originalYearlyPrice  Decimal? @db.Decimal(10, 2)
+  discount      Int      @default(0) // Percentage
+  isPopular     Boolean  @default(false)
+  badge         String?  // "MOST POPULAR", etc.
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  
+  // Limits
+  maxSchools    Int?     // null = unlimited
+  maxStudents   Int?
+  maxStaff      Int?
+  storageGB     Int?
+  
+  // Modules included (JSON array of module names)
+  modules       Json     // ["student", "staff", "exam", etc.]
+  
+  // Features (JSON array)
+  features      Json?    // ["Free SSL", "Auto Backups", etc.]
+  
+  // Support level
+  supportLevel  String   @default("email") // email, priority, dedicated
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("subscription_plans")
+}
+
+// ==================== AUDIT & LOGGING ====================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  schoolId    String?
+  userId      String?
+  action      String   // create, update, delete, login, logout
+  entityType  String   // User, Student, Payment, etc.
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  school      School?  @relation(fields: [schoolId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  @@index([schoolId])
+  @@index([userId])
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== GLOBAL PLATFORM SETTINGS ====================
+
+model GlobalSetting {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String   @db.Text
+  updatedAt       DateTime @updatedAt
+
+  @@map("global_settings")
+}
+
+// ==================== PASSWORD RESET OTP ====================
+
+model PasswordResetOtp {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("password_reset_otps")
+}
+
+// ==================== DEMO REQUESTS ====================
+
+model DemoRequest {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String
+  phone         String
+  schoolName    String?
+  schoolType    String?  // primary, secondary, college, university
+  position      String?  // principal, admin, owner, etc.
+  country       String?
+  state         String?
+  city          String?
+  preferredDate DateTime
+  preferredTime String   // Time slot (e.g., "10:00 AM", "2:00 PM")
+  timezone      String   @default("UTC")
+  message       String?  @db.Text
+  status        String   @default("pending") // pending, confirmed, completed, cancelled
+  meetingLink   String?  // Zoom/Google Meet link
+  notes         String?  @db.Text
+  assignedTo    String?  // User ID of sales rep
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([email])
+  @@index([status])
+  @@index([preferredDate])
+  @@index([createdAt])
+  @@map("demo_requests")
+}
+

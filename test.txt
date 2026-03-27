@@ -1,0 +1,131 @@
+================================================================================
+  CODEAT ERP / SCHOOL APP — KYA ADD HUA (SUMMARY)
+  File: test.txt (reference document)
+================================================================================
+
+1) DATABASE (Prisma — School model)
+   - organizationType: "school" | "company" | "trust" | "ngo" | "other" (default: school)
+   - industry: optional text (e.g. K-12, manufacturing, CSR)
+   Migration SQL: prisma/migrations/20250323120000_add_organization_profile/migration.sql
+   NOTE: DB me columns apply karna zaroori hai (migrate deploy ya manual SQL), warna
+         settings/auth me naye fields error de sakte hain.
+
+2) API CHANGES
+   - GET/PATCH /api/settings — organizationType + industry read/update
+   - GET /api/auth/me — school { name, organizationType, industry } + permissions ab
+     ROLE_PERMISSIONS se merge hote hain (taaki naye modules bina DB re-seed ke mile)
+   - GET /api/dashboard/stats — attendanceToday (aaj ki attendance rows count),
+     pendingPayments (status=pending payments count)
+   - POST /api/schools (super admin) — optional organizationType, industry
+   - GET /api/services aur /api/services/public — ERP category + 5 naye modules list
+
+3) PERMISSIONS & ROUTES
+   - erp:read, erp:write — school_admin ke paas dono; principal/accountant/hr/etc. ko erp:read
+   - Naye protected routes:
+     /dashboard/erp, /dashboard/crm, /dashboard/inventory,
+     /dashboard/projects, /dashboard/documents
+   - lib/route-permissions.ts me in routes ka mapping
+
+4) UI — NAYE PAGES
+   - /dashboard/erp — ERP Hub: org type badge, label summary (student vs member vs
+     beneficiary), saare modules ke shortcuts, checklist
+   - /dashboard/crm — Contacts table: naam, email, phone, tag (donor/client/etc.),
+     stage (lead/active/dormant), notes. Data browser localStorage me:
+     key = erp_crm_<schoolId>
+   - /dashboard/inventory — Items: SKU, name, qty, location, custodian. Low stock < 5
+     highlight. localStorage: erp_inventory_<schoolId>
+   - /dashboard/projects — Kanban: Planned / Active / Done; cards move buttons se column
+     change. localStorage: erp_projects_<schoolId>
+   - /dashboard/documents — Document register: title, category, reference, owner,
+     next review date; 30 din ke andar review wale highlight. localStorage:
+     erp_documents_<schoolId>
+
+5) UI — SETTINGS
+   - Naya tab "Organization": type dropdown + industry field → PATCH /settings
+
+6) UI — DASHBOARD (home)
+   - 6 stat cards (pehle 4 + attendance today + pending payments)
+   - Org-type ke hisaab se subtitles
+   - ERP shortcuts row (CRM, Inventory, Projects, Documents, Hub) jab erp:read ho
+   - Quick actions me links (students, attendance, exams, CRM)
+
+7) UI — SIDEBAR
+   - Branding: "Codeat ERP", neeche organization name
+   - Naye menu: ERP Hub, CRM & Contacts, Inventory, Projects, Documents
+   - i18n: nav.erpHub, nav.crm, ... (en + hi)
+
+8) UI — HAR MODULE PANEL PAR STRIP
+   - Component: components/erp/erp-module-strip.tsx
+   - Students, Staff, Classes, Subjects, Exams, Results, Attendance, Fees, Payments,
+     Library, Transport, Announcements, Reports, Settings — neeche dashed card:
+     us module se related ERP links (CRM, Documents, Projects, etc.)
+   - Sirf tab dikhega jab user ke paas erp:read access ho (canAccessRoute)
+
+9) HELPERS
+   - lib/organization-labels.ts — ORGANIZATION_TYPES, getOrganizationLabels(),
+     organizationTypeLabel()
+
+10) LANDING / PUBLIC SERVICES
+    - components/services/public-services-section.tsx — ERP icons + "ERP" category color
+
+================================================================================
+  KAISE KAAM KAREGA (FLOW)
+================================================================================
+
+A) ORGANIZATION TYPE SET KARNA
+   1. Admin login → Settings → Organization tab
+   2. Type chuno (School / Company / Trust / NGO / Other) + optional industry
+   3. Save → DB me school row update
+   4. Dobara load par /api/auth/me user.school me ye values bhejta hai
+   5. Dashboard, ERP Hub, ErpModuleStrip in values se friendly labels dikhate hain
+      (e.g. company par "Members", trust par "Beneficiaries")
+
+B) ERP MODULES (CRM / INVENTORY / PROJECTS / DOCUMENTS)
+   - Ye charon abhi **client-side workspace** hain: data **localStorage** me save,
+     har tenant alag key (schoolId). Iska matlab:
+     * Turant UI se try kar sakte ho, server DB change ki zaroorat nahi in modules ke liye
+     * Same browser / same org me data rahega; browser clear = data gayab
+     * Baad me tum in APIs ko Prisma tables se replace kar sakte ho
+
+C) ERP HUB
+   - Sirf navigation + samajh: kaunsa module kis kaam ka hai, org profile card,
+     checklist. Koi alag backend nahi.
+
+D) DASHBOARD STATS
+   - attendanceToday: aaj ki date ke liye attendance table me kitni entries
+   - pendingPayments: payments jinka status "pending" hai
+   - Baaki counts pehle jaisa (students, staff, classes, completed revenue)
+
+E) PERMISSIONS
+   - Middleware + sidebar route check: user.permissions me erp:read hona chahiye
+   - /api/auth/me merge: role name (e.g. school_admin) se default permissions list
+     mil kar DB wali list ke saath jod di jati hai — duplicate hat jate hain
+
+F) SUPER ADMIN NAYA SCHOOL
+   - POST /api/schools body me organizationType / industry bhej sakte ho (optional);
+     default school + null industry
+
+================================================================================
+  FILES JO ZYADA IMPORTANT HAIN (REFERENCE)
+================================================================================
+
+  prisma/schema.prisma          — School fields
+  lib/organization-labels.ts   — Labels by org type
+  lib/permissions.ts           — ERP_READ / ERP_WRITE
+  lib/route-permissions.ts     — Dashboard ERP routes
+  app/api/auth/me/route.ts      — Merge permissions + school snippet
+  app/api/settings/route.ts     — Org profile PATCH
+  app/api/dashboard/stats/route.ts
+  components/erp/erp-module-strip.tsx
+  components/layouts/sidebar.tsx
+  app/(dashboard)/dashboard/erp/page.tsx
+  app/(dashboard)/dashboard/crm/page.tsx
+  app/(dashboard)/dashboard/inventory/page.tsx
+  app/(dashboard)/dashboard/projects/page.tsx
+  app/(dashboard)/dashboard/documents/page.tsx
+  app/(dashboard)/dashboard/page.tsx  — main dashboard
+  app/(dashboard)/dashboard/settings/page.tsx — Organization tab
+
+================================================================================
+  END
+================================================================================
