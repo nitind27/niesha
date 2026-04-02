@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import api from "@/lib/api"
-import { SchoolFormDialog } from "@/components/admin/school-form-dialog"
+import { SchoolFormDialog, SchoolEditData } from "@/components/admin/school-form-dialog"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -65,6 +65,7 @@ export default function SchoolsPage() {
   const [searchInput, setSearchInput] = useState("")
   const debouncedSearch = useDebounce(searchInput, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editData, setEditData] = useState<SchoolEditData | null>(null)
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -148,6 +149,42 @@ export default function SchoolsPage() {
   }
 
   const handleCreate = () => {
+    setEditData(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEdit = async (school: School) => {
+    try {
+      const response = await api.get(`/schools/${school.id}`)
+      const full = response.data.school
+      setEditData({
+        id: full.id,
+        name: full.name,
+        email: full.email,
+        phone: full.phone,
+        address: full.address,
+        city: full.city,
+        state: full.state,
+        country: full.country,
+        zipCode: full.zipCode,
+        website: full.website,
+        status: full.status,
+        subscriptionPlan: full.subscriptionPlan,
+        maxUsers: full.maxUsers,
+        maxStudents: full.maxStudents,
+        organizationType: full.organizationType,
+        industry: full.industry,
+      })
+    } catch {
+      setEditData({
+        id: school.id,
+        name: school.name,
+        email: school.email,
+        phone: school.phone,
+        status: school.status,
+        subscriptionPlan: school.subscriptionPlan,
+      })
+    }
     setIsFormOpen(true)
   }
 
@@ -343,6 +380,10 @@ export default function SchoolsPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleEdit(school)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDelete(school.id)}>
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
@@ -404,6 +445,7 @@ export default function SchoolsPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         onSuccess={handleSuccess}
+        editData={editData}
       />
     </div>
   )

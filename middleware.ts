@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { verifyToken } from "./lib/auth"
 import { clearAuthCookieOptions } from "./lib/auth-cookies"
 import { getRoutePermission, canAccessRoute } from "./lib/route-permissions"
-import { PERMISSIONS } from "./lib/permissions"
+import { PERMISSIONS, ROLE_PERMISSIONS } from "./lib/permissions"
 import { prisma } from "./lib/prisma"
 
 export async function middleware(request: NextRequest) {
@@ -107,6 +107,11 @@ export async function middleware(request: NextRequest) {
             }
           }
         }
+
+        // Merge with role defaults (same logic as /api/auth/me)
+        // This ensures users created without a plan still get their role's default permissions
+        const roleDefaults = (ROLE_PERMISSIONS[user.role.name] ?? []) as string[]
+        permissions = [...new Set([...roleDefaults, ...permissions])]
 
         // Check if user has permission for this route
         if (!canAccessRoute(permissions, pathname)) {

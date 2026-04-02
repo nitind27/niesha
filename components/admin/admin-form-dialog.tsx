@@ -115,8 +115,8 @@ export function AdminFormDialog({
           firstName: admin.firstName,
           lastName: admin.lastName,
           phone: admin.phone || "",
-          roleId: admin.roleId,
-          schoolId: admin.schoolId || "none",
+          roleId: admin.roleId ?? admin.role?.id ?? "",
+          schoolId: admin.schoolId ?? (admin.school?.id || "none"),
           isActive: admin.isActive,
           language: admin.language || "en",
         })

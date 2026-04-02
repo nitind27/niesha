@@ -230,10 +230,8 @@ export async function POST(request: NextRequest) {
       const createdRoles: Record<string, { id: string }> = {}
       for (const roleDef of SCHOOL_ROLES) {
         const permissions = buildRolePermissions(roleDef, planModules)
-        // Use upsert keyed on name — if a global role exists reuse it, else create school-scoped one
-        // We create with a school-prefixed name to avoid collisions
         const roleName = roleDef.name
-        // Check if role already exists globally (seeded)
+        // Upsert: find existing global role and update its permissions, or create new
         let role = await tx.role.findFirst({ where: { name: roleName, deletedAt: null } })
         if (!role) {
           role = await tx.role.create({
@@ -244,6 +242,12 @@ export async function POST(request: NextRequest) {
               permissions: JSON.stringify(permissions),
               isSystem: false,
             },
+          })
+        } else {
+          // Update permissions so plan modules are reflected
+          role = await tx.role.update({
+            where: { id: role.id },
+            data: { permissions: JSON.stringify(permissions) },
           })
         }
         createdRoles[roleName] = { id: role.id }

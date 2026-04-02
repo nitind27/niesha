@@ -40,7 +40,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   requiredPermission?: string
   roles?: string[] // Keep for backward compatibility
-}}
+}
 
 export function Sidebar() {
   const pathname = usePathname()
