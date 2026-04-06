@@ -492,7 +492,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
                   <Target className="h-3 w-3 mr-1" />
-                  ${(stats.overview.totalRevenue / 1000).toFixed(0)}k
+                  ₹{(stats.overview.totalRevenue / 1000).toFixed(0)}k
                 </Badge>
               </div>
             </CardHeader>
@@ -508,7 +508,7 @@ export default function SuperAdminDashboard() {
                       border: "1px solid #e5e7eb",
                       borderRadius: "8px",
                     }}
-                    formatter={(value: number) => `$${value.toFixed(1)}k`}
+                    formatter={(value: number) => `₹${value.toFixed(1)}k`}
                   />
                   <Bar
                     dataKey="revenue"
