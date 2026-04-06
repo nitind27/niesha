@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { authenticateRequest, parseQueryParams, buildOrderBy } from "@/lib/api-utils"
 import { PERMISSIONS } from "@/lib/permissions"
+import { hashPassword } from "@/lib/auth"
+import { sendStaffWelcomeEmail, appBaseUrl } from "@/lib/mail"
+
+const DEFAULT_STAFF_PASSWORD = "staff@123"
 
 const staffSchema = z.object({
   employeeId: z.string().min(1, "Employee ID is required").max(50),
@@ -269,8 +273,48 @@ export async function POST(request: NextRequest) {
       finalData.experience = data.experience
     }
 
+    // Create User account for staff member
+    let userId: string | undefined
+    const existingUser = await prisma.user.findFirst({
+      where: { email: data.email, schoolId: payload.schoolId, deletedAt: null },
+    })
+    if (!existingUser) {
+      // Map designation to role name
+      const designationRoleMap: Record<string, string> = {
+        "Teacher": "teacher",
+        "Principal": "principal",
+        "Accountant": "accountant",
+        "HR Manager": "hr_manager",
+        "Librarian": "librarian",
+        "Transport Manager": "transport_manager",
+      }
+      const roleName = designationRoleMap[data.designation] ?? "teacher"
+      const role = await prisma.role.findFirst({ where: { name: roleName, deletedAt: null } })
+        ?? await prisma.role.findFirst({ where: { name: "teacher", deletedAt: null } })
+
+      if (role) {
+        const hashed = await hashPassword(DEFAULT_STAFF_PASSWORD)
+        const newUser = await prisma.user.create({
+          data: {
+            email: data.email.trim().toLowerCase(),
+            password: hashed,
+            firstName: data.firstName.trim(),
+            lastName: data.lastName.trim(),
+            phone: data.phone || null,
+            roleId: role.id,
+            schoolId: payload.schoolId,
+            isActive: true,
+            language: "en",
+          },
+        })
+        userId = newUser.id
+      }
+    } else {
+      userId = existingUser.id
+    }
+
     const staff = await prisma.staff.create({
-      data: finalData,
+      data: { ...finalData, ...(userId ? { userId } : {}) },
       select: {
         id: true,
         employeeId: true,
@@ -288,6 +332,24 @@ export async function POST(request: NextRequest) {
         experience: true,
       },
     })
+
+    // Send welcome email (non-blocking)
+    if (userId) {
+      const school = await prisma.school.findUnique({
+        where: { id: payload.schoolId },
+        select: { name: true },
+      })
+      sendStaffWelcomeEmail({
+        to: data.email.trim().toLowerCase(),
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        employeeId: data.employeeId,
+        designation: data.designation,
+        schoolName: school?.name ?? "School",
+        loginUrl: `${appBaseUrl()}/login`,
+        defaultPassword: DEFAULT_STAFF_PASSWORD,
+      }).catch((e) => console.error("[staff] welcome email error:", e))
+    }
 
     return NextResponse.json({ staff }, { status: 201 })
   } catch (error) {

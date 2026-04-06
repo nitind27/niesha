@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // For dashboard/admin routes, check permissions
-    if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin") || pathname.startsWith("/student")) {
+    if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin") || pathname.startsWith("/student") || pathname.startsWith("/staff-portal")) {
       // Super admin can access everything
       if (payload.role === "super_admin") {
         return NextResponse.next()
@@ -83,8 +83,17 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/student", request.url))
       }
 
-      // Students can access /student routes freely (layout handles role check)
+      // Staff roles can only access /staff-portal routes, not /dashboard
+      const staffRoles = ["teacher", "principal", "accountant", "hr_manager", "librarian", "transport_manager"]
+      if (staffRoles.includes(payload.role) && pathname.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/staff-portal", request.url))
+      }
+
+      // Students/staff can access their own portal routes freely
       if (payload.role === "student" && pathname.startsWith("/student")) {
+        return NextResponse.next()
+      }
+      if (staffRoles.includes(payload.role) && pathname.startsWith("/staff-portal")) {
         return NextResponse.next()
       }
 

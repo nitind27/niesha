@@ -26,6 +26,11 @@ export default function DashboardLayout({
     if (!isLoading && user?.role === "student" && pathname.startsWith("/dashboard")) {
       router.push("/student")
     }
+    // Redirect staff roles to their portal
+    const staffRoles = ["teacher", "principal", "accountant", "hr_manager", "librarian", "transport_manager"]
+    if (!isLoading && user && staffRoles.includes(user.role) && pathname.startsWith("/dashboard")) {
+      router.push("/staff-portal")
+    }
   }, [user, isLoading, pathname, router])
 
   return (
