@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { authenticateRequest, parseQueryParams, buildWhereClause, buildOrderBy } from "@/lib/api-utils"
 import { PERMISSIONS } from "@/lib/permissions"
+import { hashPassword } from "@/lib/auth"
+import { sendStudentWelcomeEmail, appBaseUrl } from "@/lib/mail"
+
+const DEFAULT_STUDENT_PASSWORD = "student@123"
 
 const studentSchema = z.object({
   admissionNumber: z.string().min(1, "Admission number is required").max(50),
@@ -234,8 +238,41 @@ export async function POST(request: NextRequest) {
       status: prismaData.status || "active",
     }
 
+    // If student has an email, create a User account and link it
+    let userId: string | undefined
+    if (prismaData.email) {
+      // Check if a user with this email already exists in this school
+      const existingUser = await prisma.user.findFirst({
+        where: { email: prismaData.email, schoolId: payload.schoolId, deletedAt: null },
+      })
+
+      if (!existingUser) {
+        // Get the student role
+        const studentRole = await prisma.role.findFirst({ where: { name: "student", deletedAt: null } })
+        if (studentRole) {
+          const hashed = await hashPassword(DEFAULT_STUDENT_PASSWORD)
+          const newUser = await prisma.user.create({
+            data: {
+              email: prismaData.email.trim().toLowerCase(),
+              password: hashed,
+              firstName: prismaData.firstName.trim(),
+              lastName: prismaData.lastName.trim(),
+              phone: prismaData.phone || null,
+              roleId: studentRole.id,
+              schoolId: payload.schoolId,
+              isActive: true,
+              language: "en",
+            },
+          })
+          userId = newUser.id
+        }
+      } else {
+        userId = existingUser.id
+      }
+    }
+
     const student = await prisma.student.create({
-      data: finalData,
+      data: { ...finalData, ...(userId ? { userId } : {}) },
       select: {
         id: true,
         admissionNumber: true,
@@ -244,20 +281,28 @@ export async function POST(request: NextRequest) {
         dateOfBirth: true,
         gender: true,
         status: true,
-        class: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        section: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        email: true,
+        class: { select: { id: true, name: true } },
+        section: { select: { id: true, name: true } },
       },
     })
+
+    // Send welcome email (non-blocking) if student has email
+    if (prismaData.email && userId) {
+      const school = await prisma.school.findUnique({
+        where: { id: payload.schoolId },
+        select: { name: true },
+      })
+      sendStudentWelcomeEmail({
+        to: prismaData.email.trim().toLowerCase(),
+        firstName: prismaData.firstName.trim(),
+        lastName: prismaData.lastName.trim(),
+        admissionNumber: prismaData.admissionNumber,
+        schoolName: school?.name ?? "School",
+        loginUrl: `${appBaseUrl()}/login`,
+        defaultPassword: DEFAULT_STUDENT_PASSWORD,
+      }).catch((e) => console.error("[students] welcome email error:", e))
+    }
 
     return NextResponse.json({ student }, { status: 201 })
   } catch (error) {
