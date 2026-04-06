@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
@@ -20,10 +20,13 @@ import {
   Zap,
   Target,
   BarChart3,
+  ChevronRight,
 } from "lucide-react"
 import api from "@/lib/api"
 import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   LineChart,
   Line,
@@ -176,6 +179,7 @@ export default function SuperAdminDashboard() {
       bgGradient: "from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900",
       trend: stats.growth.schools.percentage,
       trendLabel: "vs last month",
+      href: "/admin/super/schools",
     },
     {
       title: "Total Users",
@@ -186,6 +190,7 @@ export default function SuperAdminDashboard() {
       bgGradient: "from-green-50 to-green-100 dark:from-green-950 dark:to-green-900",
       trend: stats.growth.users.percentage,
       trendLabel: "vs last month",
+      href: "/admin/super/admins",
     },
     {
       title: "Total Students",
@@ -194,6 +199,7 @@ export default function SuperAdminDashboard() {
       icon: GraduationCap,
       gradient: "from-purple-500 to-purple-600",
       bgGradient: "from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900",
+      href: "/admin/super/schools",
     },
     {
       title: "Total Staff",
@@ -202,6 +208,7 @@ export default function SuperAdminDashboard() {
       icon: UserCheck,
       gradient: "from-orange-500 to-orange-600",
       bgGradient: "from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900",
+      href: "/admin/super/admins",
     },
     {
       title: "Total Classes",
@@ -210,6 +217,7 @@ export default function SuperAdminDashboard() {
       icon: BookOpen,
       gradient: "from-indigo-500 to-indigo-600",
       bgGradient: "from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900",
+      href: "/admin/super/schools",
     },
     {
       title: "Total Revenue",
@@ -218,6 +226,7 @@ export default function SuperAdminDashboard() {
       icon: DollarSign,
       gradient: "from-yellow-500 to-yellow-600",
       bgGradient: "from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900",
+      href: "/admin/super/schools",
     },
   ]
 
@@ -310,7 +319,8 @@ export default function SuperAdminDashboard() {
               animate="rest"
             >
               <motion.div variants={cardHoverVariants}>
-                <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <Link href={(card as any).href ?? "#"}>
+                <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer">
                   <div className={`absolute inset-0 bg-gradient-to-br ${card.bgGradient} opacity-50`} />
                   <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
@@ -333,7 +343,7 @@ export default function SuperAdminDashboard() {
                     </motion.div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-                      {card.trend !== undefined && (
+                      {card.trend !== undefined ? (
                         <motion.div
                           className={`flex items-center text-xs font-semibold px-2 py-1 rounded-full ${
                             isPositive
@@ -351,10 +361,15 @@ export default function SuperAdminDashboard() {
                           )}
                           {Math.abs(card.trend).toFixed(1)}%
                         </motion.div>
+                      ) : (
+                        <span className="flex items-center text-xs text-muted-foreground hover:text-primary transition-colors">
+                          View <ChevronRight className="h-3 w-3 ml-0.5" />
+                        </span>
                       )}
                     </div>
                   </CardContent>
                 </Card>
+                </Link>
               </motion.div>
             </motion.div>
           )
@@ -631,11 +646,12 @@ export default function SuperAdminDashboard() {
               {stats.recent.schools.map((school, index) => (
                 <motion.div
                   key={index}
-                  className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-all duration-300 hover:shadow-md"
+                  className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-all duration-300 hover:shadow-md cursor-pointer"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ scale: 1.02, x: 4 }}
+                  onClick={() => window.location.href = `/admin/super/schools`}
                 >
                   <div className="flex-1">
                     <div className="font-semibold text-base">{school.name}</div>
@@ -675,18 +691,19 @@ export default function SuperAdminDashboard() {
               {stats.recent.users.map((user, index) => (
                 <motion.div
                   key={index}
-                  className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-all duration-300 hover:shadow-md"
+                  className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-all duration-300 hover:shadow-md cursor-pointer"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ scale: 1.02, x: 4 }}
+                  onClick={() => window.location.href = `/admin/super/admins`}
                 >
                   <div className="flex-1">
                     <div className="font-semibold text-base">
                       {user.firstName} {user.lastName}
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {user.role.displayName} {user.school ? `• ${user.school.name}` : ""}
+                      {user.role.displayName} {user.school ? `â€¢ ${user.school.name}` : ""}
                     </div>
                   </div>
                   <Badge
