@@ -22,6 +22,10 @@ export default function DashboardLayout({
     if (!isLoading && user?.role === "super_admin" && pathname.startsWith("/dashboard")) {
       router.push("/admin/super")
     }
+    // Redirect students to their own portal
+    if (!isLoading && user?.role === "student" && pathname.startsWith("/dashboard")) {
+      router.push("/student")
+    }
   }, [user, isLoading, pathname, router])
 
   return (

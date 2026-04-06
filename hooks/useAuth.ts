@@ -74,11 +74,12 @@ export function useAuthInit() {
   const { setUser, setToken } = useAuth()
 
   useEffect(() => {
-    // Ensure isLoading is true initially
-    useAuth.setState({ isLoading: true })
+    // Skip if already initialized (token is set or user is loaded)
+    // This prevents double-fetch when multiple layouts call useAuthInit
+    const state = useAuth.getState()
+    if (!state.isLoading) return
 
     // Always call /api/auth/me which reads httpOnly cookie server-side
-    // This works even if cookie is httpOnly (which it is for security)
     const fetchMe = () =>
       fetch("/api/auth/me", {
         credentials: "include",
