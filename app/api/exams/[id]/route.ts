@@ -12,6 +12,10 @@ const updateExamSchema = z.object({
   endDate: z.string().optional(),
   status: z.enum(["scheduled", "ongoing", "completed", "cancelled"]).optional(),
   description: z.string().max(500).optional().or(z.literal("")),
+  duration: z.number().int().positive().optional().nullable(),
+  passingMarks: z.number().int().positive().optional().nullable(),
+  shuffleQuestions: z.boolean().optional(),
+  showResults: z.boolean().optional(),
 })
 
 export async function GET(
@@ -150,6 +154,10 @@ export async function PATCH(
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate)
     if (data.status !== undefined) updateData.status = data.status
     if (data.description !== undefined) updateData.description = data.description || null
+    if (data.duration !== undefined) updateData.duration = data.duration
+    if (data.passingMarks !== undefined) updateData.passingMarks = data.passingMarks
+    if (data.shuffleQuestions !== undefined) updateData.shuffleQuestions = data.shuffleQuestions
+    if (data.showResults !== undefined) updateData.showResults = data.showResults
 
     const exam = await prisma.exam.update({
       where: { id: params.id },

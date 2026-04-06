@@ -21,6 +21,7 @@ import {
   ChevronRight,
   MoreVertical,
   ArrowUpDown,
+  FileQuestion,
 } from "lucide-react"
 import { useExams } from "@/hooks/useExams"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -46,7 +47,10 @@ import { useToast } from "@/components/ui/use-toast"
 import { formatDate } from "@/lib/utils"
 import { ErpModuleStrip } from "@/components/erp/erp-module-strip"
 
+import { useRouter } from "next/navigation"
+
 export default function ExamsPage() {
+  const router = useRouter()
   const [searchInput, setSearchInput] = useState("")
   const debouncedSearch = useDebounce(searchInput, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -252,9 +256,14 @@ export default function ExamsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => router.push(`/dashboard/exams/${exam.id}`)}>
+                                <FileQuestion className="mr-2 h-4 w-4" />
+                                Manage Questions
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleEdit(exam)}>
                                 <Edit className="mr-2 h-4 w-4" />
-                                Edit
+                                Edit Details
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem

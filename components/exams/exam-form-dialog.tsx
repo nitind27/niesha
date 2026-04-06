@@ -34,6 +34,10 @@ const examSchema = z.object({
   endDate: z.string().min(1, "End date is required"),
   status: z.enum(["scheduled", "ongoing", "completed", "cancelled"]),
   description: z.string().max(500).optional().or(z.literal("")),
+  duration: z.number().int().positive().optional().nullable(),
+  passingMarks: z.number().int().positive().optional().nullable(),
+  shuffleQuestions: z.boolean().default(false),
+  showResults: z.boolean().default(true),
 })
 
 type ExamFormData = z.infer<typeof examSchema>
@@ -90,20 +94,17 @@ export function ExamFormDialog({
           name: exam.name || "",
           type: exam.type || "mid_term",
           classId: exam.classId || "",
-          startDate: exam.startDate
-            ? new Date(exam.startDate).toISOString().split("T")[0]
-            : "",
-          endDate: exam.endDate
-            ? new Date(exam.endDate).toISOString().split("T")[0]
-            : "",
+          startDate: exam.startDate ? new Date(exam.startDate).toISOString().slice(0, 16) : "",
+          endDate: exam.endDate ? new Date(exam.endDate).toISOString().slice(0, 16) : "",
           status: exam.status || "scheduled",
           description: exam.description || "",
+          duration: exam.duration ?? null,
+          passingMarks: exam.passingMarks ?? null,
+          shuffleQuestions: exam.shuffleQuestions ?? false,
+          showResults: exam.showResults ?? true,
         })
       } else {
-        reset({
-          status: "scheduled",
-          type: "mid_term",
-        })
+        reset({ status: "scheduled", type: "mid_term", shuffleQuestions: false, showResults: true })
       }
       setError(null)
     } else {
@@ -125,6 +126,10 @@ export function ExamFormDialog({
         endDate: data.endDate,
         status: data.status || "scheduled",
         description: data.description?.trim() || undefined,
+        duration: data.duration ?? null,
+        passingMarks: data.passingMarks ?? null,
+        shuffleQuestions: data.shuffleQuestions ?? false,
+        showResults: data.showResults ?? true,
       }
 
       if (exam) {
@@ -313,6 +318,27 @@ export function ExamFormDialog({
                   {...register("description")}
                   placeholder="Enter exam description"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (minutes, optional)</Label>
+                <Input id="duration" type="number" min={1} {...register("duration", { valueAsNumber: true })} placeholder="e.g. 60" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="passingMarks">Passing Marks (optional)</Label>
+                <Input id="passingMarks" type="number" min={1} {...register("passingMarks", { valueAsNumber: true })} placeholder="e.g. 40" />
+              </div>
+
+              <div className="flex items-center gap-3 md:col-span-2 pt-1">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" {...register("shuffleQuestions")} className="rounded" />
+                  Shuffle questions for each student
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer ml-6">
+                  <input type="checkbox" {...register("showResults")} className="rounded" />
+                  Show results to student after submission
+                </label>
               </div>
             </div>
           </div>

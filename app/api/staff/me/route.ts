@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/lib/permissions"
 // GET /api/staff/me — returns the logged-in staff member's own full profile
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateRequest(request, PERMISSIONS.STAFF_READ)
+    const auth = await authenticateRequest(request, PERMISSIONS.SETTINGS_READ)
     if (auth.error) {
       return NextResponse.json({ error: auth.error.message }, { status: auth.error.status })
     }
