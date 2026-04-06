@@ -17,40 +17,69 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No school associated" }, { status: 403 })
     }
 
-    // Find student record linked to this user
-    const student = await prisma.student.findFirst({
-      where: { userId: payload.userId, schoolId: payload.schoolId, deletedAt: null },
-      include: {
-        class: { select: { id: true, name: true } },
-        section: { select: { id: true, name: true } },
-        school: { select: { id: true, name: true } },
-        attendance: {
-          orderBy: { date: "desc" },
-          take: 30,
-          select: { id: true, date: true, status: true, remarks: true },
-        },
-        examResults: {
-          where: { deletedAt: null },
-          orderBy: { createdAt: "desc" },
-          include: {
-            exam: { select: { id: true, name: true, type: true, startDate: true, endDate: true } },
-            subject: { select: { id: true, name: true, code: true } },
-          },
-        },
-        feePayments: {
-          orderBy: { createdAt: "desc" },
-          take: 20,
-          select: {
-            id: true,
-            amount: true,
-            status: true,
-            paymentDate: true,
-            paymentMethod: true,
-            transactionId: true,
-          },
+    const include = {
+      class: { select: { id: true, name: true } },
+      section: { select: { id: true, name: true } },
+      school: { select: { id: true, name: true } },
+      attendance: {
+        orderBy: { date: "desc" as const },
+        take: 30,
+        select: { id: true, date: true, status: true, remarks: true },
+      },
+      examResults: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" as const },
+        include: {
+          exam: { select: { id: true, name: true, type: true, startDate: true, endDate: true } },
+          subject: { select: { id: true, name: true, code: true } },
         },
       },
+      feePayments: {
+        orderBy: { createdAt: "desc" as const },
+        take: 20,
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          paymentDate: true,
+          paymentMethod: true,
+          transactionId: true,
+        },
+      },
+    }
+
+    // 1. Try by userId first
+    let student = await prisma.student.findFirst({
+      where: { userId: payload.userId, schoolId: payload.schoolId, deletedAt: null },
+      include,
     })
+
+    // 2. Fall back to email match (for students created before userId linking)
+    if (!student) {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { email: true },
+      })
+
+      if (user?.email) {
+        student = await prisma.student.findFirst({
+          where: {
+            email: { equals: user.email, mode: "insensitive" },
+            schoolId: payload.schoolId,
+            deletedAt: null,
+          },
+          include,
+        })
+
+        // Auto-link userId
+        if (student && !student.userId) {
+          await prisma.student.update({
+            where: { id: student.id },
+            data: { userId: payload.userId },
+          }).catch(() => {})
+        }
+      }
+    }
 
     if (!student) {
       return NextResponse.json({ error: "Student profile not found" }, { status: 404 })

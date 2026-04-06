@@ -17,19 +17,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No school associated" }, { status: 403 })
     }
 
-    const staff = await prisma.staff.findFirst({
-      where: { userId: payload.userId, schoolId: payload.schoolId, deletedAt: null },
-      include: {
-        school: { select: { id: true, name: true } },
-        classes: { select: { id: true, name: true } },
-        subjects: { select: { id: true, name: true, code: true } },
-        attendance: {
-          orderBy: { date: "desc" },
-          take: 30,
-          select: { id: true, date: true, status: true, checkIn: true, checkOut: true, remarks: true },
-        },
+    const include = {
+      school: { select: { id: true, name: true } },
+      classes: { select: { id: true, name: true } },
+      subjects: { select: { id: true, name: true, code: true } },
+      attendance: {
+        orderBy: { date: "desc" as const },
+        take: 30,
+        select: { id: true, date: true, status: true, checkIn: true, checkOut: true, remarks: true },
       },
+    }
+
+    // 1. Try by userId first (fast path for newly created staff)
+    let staff = await prisma.staff.findFirst({
+      where: { userId: payload.userId, schoolId: payload.schoolId, deletedAt: null },
+      include,
     })
+
+    // 2. Fall back to email match (for staff created before userId linking was added)
+    if (!staff) {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { email: true },
+      })
+
+      if (user?.email) {
+        staff = await prisma.staff.findFirst({
+          where: {
+            email: { equals: user.email, mode: "insensitive" },
+            schoolId: payload.schoolId,
+            deletedAt: null,
+          },
+          include,
+        })
+
+        // Auto-link userId so future lookups are fast
+        if (staff && !staff.userId) {
+          await prisma.staff.update({
+            where: { id: staff.id },
+            data: { userId: payload.userId },
+          }).catch(() => {}) // non-blocking, ignore unique constraint errors
+        }
+      }
+    }
 
     if (!staff) {
       return NextResponse.json({ error: "Staff profile not found" }, { status: 404 })
